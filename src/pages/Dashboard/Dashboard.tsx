@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, TrendingDown, Users, Package, 
-  AlertCircle, Eye, ThumbsUp, ThumbsDown, 
+  AlertCircle, ThumbsUp, ThumbsDown, 
   MapPin, Clock, Filter, BarChart3, DollarSign
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -54,11 +54,7 @@ const Dashboard: React.FC = () => {
     priceChange: 0
   });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [selectedRegion]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async () => {
     try {
       setLoading(true);
       
@@ -95,7 +91,11 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedRegion, user]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedRegion, fetchDashboardData]);
 
   const calculateAveragePrice = (prices: Price[]) => {
     if (prices.length === 0) return 0;
