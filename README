@@ -1,0 +1,208 @@
+# TchopPrice III - Agricultural Price Platform
+
+TchopPrice III is a full-stack web application for real-time agricultural price tracking, market data, and community engagement for farmers, agents, and buyers in Cameroon.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Running the App](#running-the-app)
+- [Environment Variables](#environment-variables)
+- [Scripts](#scripts)
+- [API Overview](#api-overview)
+- [Frontend Overview](#frontend-overview)
+- [Backend Overview](#backend-overview)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Features
+
+- **User Authentication**: Register, login, and role-based access (admin, farmer, agent).
+- **Product Catalog**: Browse, add, and manage agricultural products.
+- **Market Prices**: Report, verify, and view real-time market prices.
+- **Notifications**: In-app notifications for important events.
+- **Admin Panel**: Manage users, products, and price reports.
+- **Market Data**: View global cash crop prices and trends.
+- **Responsive UI**: Modern, mobile-friendly design with Tailwind CSS.
+
+---
+
+## Project Structure
+
+```
+project/
+│
+├── backend/                # Express.js backend API
+│   ├── config/             # Database configuration
+│   ├── controllers/        # API controllers (auth, users, prices, notifications, market data)
+│   ├── middleware/         # Auth and other middleware
+│   ├── models/             # Mongoose models (User, Product, Price, Notification)
+│   ├── routes/             # Express route definitions
+│   ├── .env                # Backend environment variables
+│   ├── package.json        # Backend dependencies and scripts
+│   └── server.js           # Main server entry point
+│
+├── public/                 # Static assets (favicon, etc.)
+│
+├── src/                    # React frontend
+│   ├── components/         # Reusable UI components (Navbar, Sidebar, Layout, etc.)
+│   ├── contexts/           # React context providers (AuthContext)
+│   ├── pages/              # Page components (Dashboard, Prices, Products, Profile, Admin, Auth, Public)
+│   ├── services/           # API service wrappers (api.ts)
+│   ├── App.tsx             # Main app component and routes
+│   ├── index.css           # Tailwind CSS entry
+│   ├── main.tsx            # React entry point
+│   └── vite-env.d.ts       # Vite environment types
+│
+├── .gitignore
+├── index.html
+├── package.json            # Frontend dependencies and scripts
+├── postcss.config.js
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.app.json
+├── tsconfig.node.json
+└── vite.config.ts
+```
+
+---
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Framer Motion, React Router, Axios, Lucide Icons
+- **Backend**: Node.js, Express.js, MongoDB (Mongoose), JWT, bcryptjs, dotenv
+- **Other**: ESLint, Vite, PostCSS, concurrently, nodemon
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18+ recommended)
+- npm (v9+ recommended)
+- MongoDB (local or cloud instance)
+
+### Installation
+
+1. **Clone the repository:**
+   ```sh
+   git clone <your-repo-url>
+   cd tchopprice2/project
+   ```
+
+2. **Install backend dependencies:**
+   ```sh
+   cd backend
+   npm install
+   cd ..
+   ```
+
+3. **Install frontend dependencies:**
+   ```sh
+   npm install
+   ```
+
+### Running the App
+
+Start both frontend and backend in development mode:
+
+```sh
+npm run dev
+```
+
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend API: [http://localhost:5000/api](http://localhost:5000/api)
+
+---
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+
+```
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/tchopprice
+JWT_SECRET=your_jwt_secret
+NODE_ENV=development
+NASDAQ_API_KEY=your_nasdaq_api_key
+```
+
+---
+
+## Scripts
+
+### Frontend (`package.json`)
+
+- `npm run dev` - Start frontend and backend concurrently
+- `npm run build` - Build frontend for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+
+### Backend (`backend/package.json`)
+
+- `npm run dev` - Start backend with nodemon
+- `npm start` - Start backend
+
+---
+
+## API Overview
+
+- **Auth**: `/api/auth` (register, login, profile)
+- **Users**: `/api/users` (CRUD, stats, block/unblock, verify)
+- **Products**: `/api/products` (CRUD, list)
+- **Prices**: `/api/prices` (report, list, verify, vote, stats)
+- **Notifications**: `/api/notifications` (list, mark as read)
+- **Market Data**: `/api/market-data` (cash crop prices, trends, summary)
+- **Regions**: `/api/regions` (list of Cameroon regions and cities)
+
+See route files in [`backend/routes/`](backend/routes/) for details.
+
+---
+
+## Frontend Overview
+
+- **Routing**: See [`src/App.tsx`](src/App.tsx)
+- **Authentication**: [`src/contexts/AuthContext.tsx`](src/contexts/AuthContext.tsx)
+- **API Calls**: [`src/services/api.ts`](src/services/api.ts)
+- **UI Components**: [`src/components/`](src/components/)
+- **Pages**: [`src/pages/`](src/pages/)
+  - Dashboard, Prices, Products, Profile, Admin Panel, Auth, Public Landing
+
+---
+
+## Backend Overview
+
+- **Server Entry**: [`backend/server.js`](backend/server.js)
+- **Database Models**: [`backend/models/`](backend/models/)
+- **Controllers**: [`backend/controllers/`](backend/controllers/)
+- **Routes**: [`backend/routes/`](backend/routes/)
+- **Middleware**: [`backend/middleware/`](backend/middleware/)
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Create a Pull Request
+
+---
+
+## License
+
+This project is licensed under the MIT License.
+
+---
+
+**Enjoy using TchopPrice 

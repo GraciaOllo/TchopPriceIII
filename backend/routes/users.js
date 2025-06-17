@@ -1,0 +1,41 @@
+import express from 'express';
+import { body } from 'express-validator';
+import { 
+  getAllUsers, 
+  createUser, 
+  updateUser, 
+  deleteUser, 
+  verifyUser, 
+  blockUser, 
+  unblockUser, 
+  getUserStats,
+  updateProfile 
+} from '../controllers/userController.js';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// Validation rules
+const createUserValidation = [
+  body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('phone').trim().isLength({ min: 8 }).withMessage('Valid phone number required'),
+  body('region').trim().notEmpty().withMessage('Region is required'),
+  body('location').trim().notEmpty().withMessage('Location is required')
+];
+
+// Admin routes
+router.get('/', authenticateToken, authorizeRoles('admin'), getAllUsers);
+router.post('/', authenticateToken, authorizeRoles('admin'), createUserValidation, createUser);
+router.put('/:userId', authenticateToken, authorizeRoles('admin'), updateUser);
+router.delete('/:userId', authenticateToken, authorizeRoles('admin'), deleteUser);
+router.patch('/:userId/verify', authenticateToken, authorizeRoles('admin'), verifyUser);
+router.patch('/:userId/block', authenticateToken, authorizeRoles('admin'), blockUser);
+router.patch('/:userId/unblock', authenticateToken, authorizeRoles('admin'), unblockUser);
+router.get('/stats', authenticateToken, authorizeRoles('admin'), getUserStats);
+
+// User profile routes
+router.put('/profile', authenticateToken, updateProfile);
+
+export default router;
