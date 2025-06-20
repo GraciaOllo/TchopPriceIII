@@ -14,6 +14,12 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     enum: [
       'price_signal',
+      'product_created',
+      'product_approved',
+      'product_rejected',
+      'product_comment',
+      'buyer_contact',
+      'farmer_response',
       'user_registration',
       'price_verification',
       'user_blocked',

@@ -149,6 +149,46 @@ export const deletePrice = async (req, res) => {
   }
 };
 
+export const updatePrice = async (req, res) => {
+  try {
+    const { priceId } = req.params;
+    const { price, quality, region, market, notes } = req.body;
+    
+    const priceDoc = await Price.findById(priceId);
+    if (!priceDoc) {
+      return res.status(404).json({ message: 'Price not found' });
+    }
+
+    // Only admin can update prices
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can update prices' });
+    }
+
+    // Update fields
+    if (price !== undefined) priceDoc.price = price;
+    if (quality) priceDoc.quality = quality;
+    if (region) priceDoc.region = region;
+    if (market) priceDoc.market = market;
+    if (notes !== undefined) priceDoc.notes = notes;
+
+    // Mark as verified since admin updated it
+    priceDoc.isVerified = true;
+    priceDoc.verifiedBy = req.user.id;
+    priceDoc.verifiedAt = new Date();
+
+    await priceDoc.save();
+    await priceDoc.populate(['product', 'reportedBy', 'verifiedBy']);
+
+    res.json({
+      message: 'Price updated successfully',
+      price: priceDoc
+    });
+  } catch (error) {
+    console.error('Price update error:', error);
+    res.status(500).json({ message: 'Server error while updating price' });
+  }
+};
+
 export const getLatestPrices = async (req, res) => {
   try {
     const { region, limit = 10 } = req.query;

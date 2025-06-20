@@ -91,6 +91,7 @@ export const login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
         region: user.region,
         location: user.location,
@@ -103,13 +104,12 @@ export const login = async (req, res) => {
     res.status(500).json({ message: 'Server error during login' });
   }
 };
-
 export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     res.json({ user });
   } catch (error) {
-    console.error('Profile fetch error:', error.message || error);
+    console.error('Profile fetch error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

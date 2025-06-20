@@ -1,5 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <circle cx="50" cy="50" r="50" fill="#22C55E"/>
-  <path d="M30 40h40v20H30z" fill="#F59E0B"/>
-  <circle cx="50" cy="50" r="8" fill="#FFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="64" height="64">
+  <defs>
+    <linearGradient id="G" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#044C38"></stop>
+      <stop offset="100%" stop-color="#00A67E"></stop>
+    </linearGradient>
+    <style>
+      .bg { fill: url(#G); }
+      .tp { fill: none; stroke: #fff; stroke-width: 8; stroke-linecap: round; }
+    </style>
+  </defs>
+  <circle class="bg" cx="60" cy="60" r="56"></circle>
+  <g transform="translate(30,30)">
+    <!-- T: strong symmetry -->
+    <path class="tp" d="M0,0 H60 M30,0 V60"></path>
+    <!-- P: clear and modern -->
+    <path class="tp" d="M60,0 V38 A18,18 0 0,1 30,38"></path>
+  </g>
 </svg>

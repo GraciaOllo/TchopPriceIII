@@ -22,11 +22,12 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
+    unique: true,
     trim: true
   },
   role: {
     type: String,
-    enum: ['farmer', 'admin', 'agent'],
+    enum: ['farmer', 'admin', 'buyer'],
     default: 'farmer'
   },
   region: {

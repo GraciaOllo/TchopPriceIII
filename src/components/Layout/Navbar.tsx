@@ -6,7 +6,9 @@ import {
   Sprout, Bell 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import TchopPrice from '../../../public/images/TchopPrice icon.png';
 import { notificationAPI } from '../../services/api';
+
 
 interface Notification {
   _id: string;
@@ -92,13 +94,17 @@ const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/dashboard" className="flex items-center space-x-2">
-            <div className="bg-green-600 p-2 rounded-lg">
-              <Sprout className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">
-              TchopPrice <span className="text-green-600">III</span>
-            </span>
-          </Link>
+          <div className="bg-green-600 p-2 rounded-lg">
+            <img 
+              src={TchopPrice} 
+              alt="TchopPrice" 
+              className="h-6 w-6 object-contain"
+            />
+          </div>
+          <span className="text-xl font-bold text-gray-900">
+            TchopPrice <span className="text-green-600">III</span>
+          </span>
+        </Link>
 
           {/* Desktop Menu */}
           <div className="hidden lg:flex items-center space-x-6">

@@ -3,8 +3,8 @@ import { validationResult } from 'express-validator';
 
 export const getAllUsers = async (req, res) => {
   try {
-    const { role, region, page = 1, limit = 20, search, status } = req.query;
-    const query = {};
+    const { role, region, page = 1, limit = 10, search, status } = req.query;
+    const query = { isDeleted: { $ne: true } };
     
     if (role) query.role = role;
     if (region) query.region = new RegExp(region, 'i');
@@ -231,14 +231,14 @@ export const getUserStats = async (req, res) => {
     const verifiedUsers = await User.countDocuments({ isVerified: true, isDeleted: { $ne: true } });
     const blockedUsers = await User.countDocuments({ isBlocked: true, isDeleted: { $ne: true } });
     const farmerCount = await User.countDocuments({ role: 'farmer', isDeleted: { $ne: true } });
-    const agentCount = await User.countDocuments({ role: 'agent', isDeleted: { $ne: true } });
+    const buyerCount = await User.countDocuments({ role: 'buyer', isDeleted: { $ne: true } });
 
     res.json({
       totalUsers,
       verifiedUsers,
       blockedUsers,
       farmerCount,
-      agentCount,
+      buyerCount,
       verificationRate: totalUsers > 0 ? ((verifiedUsers / totalUsers) * 100).toFixed(1) : 0
     });
   } catch (error) {

@@ -8,6 +8,7 @@ import {
   votePrice,
   verifyPrice,
   deletePrice,
+  updatePrice,
   getPriceStats
 } from '../controllers/priceController.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
@@ -23,6 +24,13 @@ const priceValidation = [
   body('unit').trim().notEmpty().withMessage('Unit is required')
 ];
 
+const priceUpdateValidation = [
+  body('price').optional().isNumeric().isFloat({ min: 0 }).withMessage('Valid price required'),
+  body('quality').optional().isIn(['premium', 'standard', 'low']).withMessage('Invalid quality'),
+  body('region').optional().trim().notEmpty().withMessage('Region cannot be empty'),
+  body('market').optional().trim().notEmpty().withMessage('Market cannot be empty')
+];
+
 // Routes
 router.post('/', authenticateToken, priceValidation, createPrice);
 
@@ -35,7 +43,8 @@ router.get('/history/:productId', getPriceHistory);
 router.post('/:priceId/vote', authenticateToken, votePrice);
 
 // Admin routes
-router.patch('/:priceId/verify', authenticateToken, authorizeRoles('admin', 'agent'), verifyPrice);
+router.patch('/:priceId/verify', authenticateToken, authorizeRoles('admin'), verifyPrice);
+router.put('/:priceId', authenticateToken, authorizeRoles('admin'), priceUpdateValidation, updatePrice);
 router.delete('/:priceId', authenticateToken, authorizeRoles('admin'), deletePrice);
 router.get('/stats', authenticateToken, authorizeRoles('admin'), getPriceStats);
 

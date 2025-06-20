@@ -276,7 +276,7 @@ const Register: React.FC = () => {
                 >
                   <option value="">Choose a role</option>
                   <option value="farmer">Farmer</option>
-                  <option value="agent">Buyer</option>
+                  <option value="buyer">Buyer</option>
                   
                 </select>
               </div>

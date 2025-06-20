@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Sprout, TrendingUp, Users, 
+  Sprout, TrendingUp, Users, Shield, 
   Search, Package, MapPin, Star,
-  ArrowRight, Eye
+  ArrowRight, Eye, Filter
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -13,9 +13,19 @@ interface Product {
   name: string;
   category: string;
   description: string;
+  price: number;
   unit: string;
   image: string;
   isActive: boolean;
+  farmer: {
+    name: string;
+    region: string;
+  };
+  location: {
+    region: string;
+    city: string;
+  };
+  createdAt: string;
 }
 
 interface Price {
@@ -57,10 +67,12 @@ const PublicLanding: React.FC = () => {
     try {
       setLoading(true);
       const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-      const productsResponse = await axios.get(`${BASE_URL}/products`);
+      
+      // Fetch recent products without authentication
+      const productsResponse = await axios.get(`${BASE_URL}/products/recent?limit=7`);
       setProducts(productsResponse.data.products);
 
+      // Fetch latest prices without authentication
       const pricesResponse = await axios.get(`${BASE_URL}/prices/latest?limit=6`);
       setLatestPrices(pricesResponse.data.prices);
     } catch (error) {
@@ -93,10 +105,11 @@ const PublicLanding: React.FC = () => {
 
   const stats = [
     { label: 'Available Products', value: products.length, icon: Package },
-    { label: 'Latest Prices', value: latestPrices.length, icon: TrendingUp },
-    { label: 'Covered Regions', value: '10', icon: MapPin },
+    { label: 'Updated Prices', value: latestPrices.length, icon: TrendingUp },
+    { label: 'Regions Covered', value: '10', icon: MapPin },
     { label: 'Active Farmers', value: '500+', icon: Users }
   ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -108,7 +121,7 @@ const PublicLanding: React.FC = () => {
                 <Sprout className="h-6 w-6 text-white" />
               </div>
               <span className="text-xl font-bold text-gray-900">
-                TchopPrice <span className="text-green-600">III</span>
+                TchopPrice <span className="text-green-600">|||</span>
               </span>
             </div>
             
@@ -117,7 +130,7 @@ const PublicLanding: React.FC = () => {
                 to="/login"
                 className="text-gray-700 hover:text-green-600 transition-colors font-medium"
               >
-                Login
+                Sign In
               </Link>
               <Link
                 to="/register"
@@ -139,17 +152,18 @@ const PublicLanding: React.FC = () => {
             className="text-center"
           >
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Real-time Agricultural Prices
+              Real-Time Agricultural Prices
             </h1>
             <p className="text-xl md:text-2xl text-green-100 mb-8 max-w-3xl mx-auto">
-              Discover current agricultural product prices in Cameroon. Reliable information for farmers and buyers.
+              Discover current prices of agricultural products in Cameroon. 
+              Reliable information for farmers and buyers.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/register"
                 className="bg-white text-green-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center"
               >
-                Join the community
+                Join the Community
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
               <button
@@ -199,10 +213,10 @@ const PublicLanding: React.FC = () => {
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Latest Market Prices
+              Latest Market Prices
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Check out the most recent prices reported by our community of farmers and agents.
+              Check the most recent prices reported by our community of farmers and buyers.
             </p>
           </motion.div>
 
@@ -256,14 +270,14 @@ const PublicLanding: React.FC = () => {
               to="/login"
               className="inline-flex items-center text-green-600 hover:text-green-700 font-medium"
             >
-              See All Prices
+              View All Prices
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Products Section */}
+      {/* Recent Products Section */}
       <section id="products" className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -272,10 +286,10 @@ const PublicLanding: React.FC = () => {
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Available Agricultural Products
+              Recent Products
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Explore the variety of agricultural products tracked on our platform.
+              Discover the 7 most recently added products by our farmers.
             </p>
           </motion.div>
 
@@ -285,7 +299,7 @@ const PublicLanding: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search a product..."
+                placeholder="Search for a product..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -297,7 +311,7 @@ const PublicLanding: React.FC = () => {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="">All categories</option>
+              <option value="">All Categories</option>
               {categories.map(category => (
                 <option key={category.value} value={category.value}>
                   {category.icon} {category.label}
@@ -313,7 +327,7 @@ const PublicLanding: React.FC = () => {
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Aucun produit trouvé</p>
+              <p className="text-gray-600">No products found</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -339,17 +353,32 @@ const PublicLanding: React.FC = () => {
                         {product.name}
                       </h3>
                       
+                      <div className="text-xl font-bold text-green-600 mb-3">
+                        {product.price.toLocaleString()} FCFA/{product.unit}
+                      </div>
+
                       {product.description && (
                         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                           {product.description}
                         </p>
                       )}
+
+                      <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <Users className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-900">{product.farmer.name}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <MapPin className="h-4 w-4 text-gray-400" />
+                          <span className="text-xs text-gray-600">{product.location.city}, {product.location.region}</span>
+                        </div>
+                      </div>
                       
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Unit: {product.unit}</span>
+                        <span className="text-gray-600">Recent</span>
                         <div className="flex items-center text-green-600">
                           <Star className="h-4 w-4 mr-1" />
-                          <span className="font-medium">Tracked</span>
+                          <span className="font-medium">Available</span>
                         </div>
                       </div>
                     </div>
@@ -358,6 +387,16 @@ const PublicLanding: React.FC = () => {
               })}
             </div>
           )}
+
+          <div className="text-center mt-8">
+            <Link
+              to="/login"
+              className="inline-flex items-center text-green-600 hover:text-green-700 font-medium"
+            >
+              View All Products
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -379,13 +418,13 @@ const PublicLanding: React.FC = () => {
                 to="/register"
                 className="bg-white text-green-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
               >
-                Create a free account
+                Create Free Account
               </Link>
               <Link
                 to="/login"
                 className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition-colors"
               >
-                Login
+                Sign In
               </Link>
             </div>
           </motion.div>
@@ -402,29 +441,29 @@ const PublicLanding: React.FC = () => {
                   <Sprout className="h-6 w-6 text-white" />
                 </div>
                 <span className="text-xl font-bold">
-                  TchopPrice <span className="text-green-400">III</span>
+                  TchopPrice <span className="text-green-400">|||</span>
                 </span>
               </div>
               <p className="text-gray-400">
-                Agricultural price platform for Cameroonian farmers..
+                Agricultural pricing platform for Cameroonian farmers.
               </p>
             </div>
             
             <div>
-              <h3 className="font-semibold mb-4">Produits</h3>
+              <h3 className="font-semibold mb-4">Products</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>Real-time Prices</li>
-                <li> Market Trends</li>
-                <li> Price Alerts</li>
+                <li>Market Trends</li>
+                <li>Price Alerts</li>
                 <li>Historical Data</li>
               </ul>
             </div>
             
             <div>
-              <h3 className="font-semibold mb-4"> Community</h3>
+              <h3 className="font-semibold mb-4">Community</h3>
               <ul className="space-y-2 text-gray-400">
-                <li> Farmers</li>
-                <li>Cooperative Agents</li>
+                <li>Farmers</li>
+                <li>Cooperative Buyers</li>
                 <li>Buyers</li>
                 <li>Partners</li>
               </ul>
@@ -442,7 +481,7 @@ const PublicLanding: React.FC = () => {
           </div>
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 TchopPrice III. All rights reserved.</p>
+            <p>&copy; 2025 TchopPrice . All rights reserved.</p>
           </div>
         </div>
       </footer>

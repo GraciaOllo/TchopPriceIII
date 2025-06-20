@@ -6,8 +6,9 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'farmer' | 'admin' | 'agent';
+  role: 'farmer' | 'admin' | 'buyer';
   region: string;
+  phone:string,
   location: string;
   crops: string[];
   isVerified: boolean;

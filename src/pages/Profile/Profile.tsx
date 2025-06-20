@@ -27,9 +27,10 @@ const Profile: React.FC = () => {
       await userAPI.updateProfile(formData);
       toast.success('Profile updated successfully!');
       setIsEditing(false);
-      // You might want to refresh user data here
+      // Refresh the page to get updated user data
+      window.location.reload();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error during update');
+      toast.error(error.response?.data?.message || 'Error updating profile');
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,7 @@ const Profile: React.FC = () => {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin': return 'text-red-600 bg-red-50 border-red-200';
-      case 'agent': return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'buyer': return 'text-blue-600 bg-blue-50 border-blue-200';
       case 'farmer': return 'text-green-600 bg-green-50 border-green-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -58,15 +59,15 @@ const Profile: React.FC = () => {
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin': return 'Administrator';
-      case 'agent': return 'Agent';
+      case 'buyer': return 'Buyer';
       case 'farmer': return 'Farmer';
       default: return role;
     }
   };
 
   const commonCrops = [
-    'Maïze', 'Rice', 'Cassava', 'Plantain', 'Banana', 'Coacoa', 'Coffee',
-    'Groundnuts', 'Beans', 'Tomato', 'Onions', 'Pepper', 'Okro'
+    'Maïs', 'Riz', 'Manioc', 'Plantain', 'Banane', 'Cacao', 'Café',
+    'Arachide', 'Haricot', 'Tomate', 'Oignon', 'Piment', 'Gombo'
   ];
 
   return (
@@ -112,7 +113,7 @@ const Profile: React.FC = () => {
             className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
           >
             <Edit className="h-4 w-4" />
-            <span>Modifier</span>
+            <span>Edit</span>
           </button>
         </div>
       </motion.div>
@@ -126,13 +127,13 @@ const Profile: React.FC = () => {
           transition={{ delay: 0.1 }}
           className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
         >
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Personal Informations</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Personal Information</h2>
           
           <div className="space-y-6">
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Complete name
+                Full Name
               </label>
               {isEditing ? (
                 <input
@@ -152,7 +153,7 @@ const Profile: React.FC = () => {
                 Email Address
               </label>
               <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user?.email}</p>
-              <p className="text-xs text-gray-500 mt-1">Email can not be modified</p>
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
             </div>
 
             {/* Phone */}
@@ -192,7 +193,7 @@ const Profile: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  City/Town
+                  City/Location
                 </label>
                 {isEditing ? (
                   <input
@@ -211,7 +212,7 @@ const Profile: React.FC = () => {
             {user?.role === 'farmer' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Crop harvested
+                  Crops Grown
                 </label>
                 {isEditing ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -246,7 +247,7 @@ const Profile: React.FC = () => {
                         </span>
                       ))
                     ) : (
-                      <p className="text-gray-500 italic">No crop saved</p>
+                      <p className="text-gray-500 italic">No crops specified</p>
                     )}
                   </div>
                 )}
@@ -273,7 +274,7 @@ const Profile: React.FC = () => {
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  <span>Saved</span>
+                  <span>Save</span>
                 </button>
               </div>
             )}
@@ -289,7 +290,7 @@ const Profile: React.FC = () => {
         >
           {/* Account Status */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Account status</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Status</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Verification</span>
@@ -298,7 +299,7 @@ const Profile: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Member Since</span>
+                <span className="text-sm text-gray-600">Member since</span>
                 <span className="text-sm text-gray-900">
                   {user?.createdAt ? new Date(user.createdAt).getFullYear() : 'N/A'}
                 </span>
@@ -317,19 +318,19 @@ const Profile: React.FC = () => {
                 Notification Settings
               </button>
               <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                Download my info
+                Download My Data
               </button>
             </div>
           </div>
 
           {/* Help */}
           <div className="bg-green-50 rounded-2xl border border-green-200 p-6">
-            <h3 className="text-lg font-semibold text-green-900 mb-2">Need help ?</h3>
+            <h3 className="text-lg font-semibold text-green-900 mb-2">Need Help?</h3>
             <p className="text-sm text-green-700 mb-4">
-              Contact our support team for any question.
+              Contact our support team for any questions.
             </p>
             <button className="text-sm text-green-600 hover:text-green-700 font-medium">
-              Contacter team →
+              Contact Support →
             </button>
           </div>
         </motion.div>

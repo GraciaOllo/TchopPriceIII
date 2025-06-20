@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, TrendingDown, Users, Package, 
-  AlertCircle, ThumbsUp, ThumbsDown, 
-  MapPin, Clock, Filter, BarChart3, DollarSign
+  AlertCircle, Eye, ThumbsUp, ThumbsDown, 
+  MapPin, Clock, Filter, BarChart3, DollarSign,
+  Plus, MessageCircle, Star, CheckCircle, Phone, Mail, User
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { priceAPI, productAPI, marketDataAPI } from '../../services/api';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 interface Price {
   _id: string;
@@ -26,9 +29,53 @@ interface Price {
     role: string;
   };
   votes: {
-    upvotes: string[];
-    downvotes: string[];
+    upvotes: any[];
+    downvotes: any[];
   };
+  createdAt: string;
+}
+
+interface Product {
+  _id: string;
+  name: string;
+  category: string;
+  description: string;
+  price: number;
+  unit: string;
+  quantity: number;
+  status: string;
+  farmer: {
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+    region: string;
+  };
+  contactPhone: string;
+  contactEmail: string;
+  location: {
+    region: string;
+    city: string;
+    address: string;
+  };
+  votes: {
+    upvotes: any[];
+    downvotes: any[];
+  };
+  createdAt: string;
+}
+
+interface Contact {
+  _id: string;
+  buyer: {
+    name: string;
+    email: string;
+  };
+  product: {
+    name: string;
+  };
+  message: string;
+  status: string;
   createdAt: string;
 }
 
@@ -44,17 +91,33 @@ interface MarketSummary {
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [latestPrices, setLatestPrices] = useState<Price[]>([]);
+  const [myProducts, setMyProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [marketSummary, setMarketSummary] = useState<MarketSummary>({});
   const [loading, setLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<string>('');
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [contactMessage, setContactMessage] = useState({
+    message: '',
+    buyerPhone: '',
+    buyerEmail: ''
+  });
   const [stats, setStats] = useState({
     totalPrices: 0,
     totalProducts: 0,
+    myProductsCount: 0,
+    pendingContacts: 0,
     averagePrice: 0,
     priceChange: 0
   });
 
-  const fetchDashboardData = React.useCallback(async () => {
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedRegion]);
+
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
       
@@ -65,6 +128,27 @@ const Dashboard: React.FC = () => {
       });
       setLatestPrices(pricesResponse.data.prices);
 
+      // Fetch farmer-specific data
+      if (user?.role === 'farmer') {
+        const myProductsResponse = await productAPI.getMyProducts({ limit: 5 });
+        setMyProducts(myProductsResponse.data.products);
+
+        const contactsResponse = await productAPI.getContacts({ 
+          status: 'pending',
+          limit: 5 
+        });
+        setContacts(contactsResponse.data.contacts);
+      }
+
+      // Fetch all approved products for buyers
+      if (user?.role === 'buyer') {
+        const allProductsResponse = await productAPI.getAll({ 
+          status: 'approved',
+          limit: 8 
+        });
+        setAllProducts(allProductsResponse.data.products);
+      }
+
       // Fetch basic stats
       const allPricesResponse = await priceAPI.getAll({ limit: 100 });
       const productsResponse = await productAPI.getAll();
@@ -72,6 +156,8 @@ const Dashboard: React.FC = () => {
       setStats({
         totalPrices: allPricesResponse.data.pagination.total,
         totalProducts: productsResponse.data.products.length,
+        myProductsCount: user?.role === 'farmer' ? myProducts.length : 0,
+        pendingContacts: user?.role === 'farmer' ? contacts.filter(c => c.status === 'pending').length : 0,
         averagePrice: calculateAveragePrice(allPricesResponse.data.prices),
         priceChange: Math.random() * 20 - 10 // Mock data
       });
@@ -91,11 +177,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedRegion, user]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [selectedRegion, fetchDashboardData]);
+  };
 
   const calculateAveragePrice = (prices: Price[]) => {
     if (prices.length === 0) return 0;
@@ -103,12 +185,31 @@ const Dashboard: React.FC = () => {
     return Math.round(sum / prices.length);
   };
 
-  const handleVote = async (priceId: string, type: 'upvote' | 'downvote') => {
+  const handleVote = async (productId: string, type: 'upvote' | 'downvote') => {
     try {
-      await priceAPI.vote(priceId, type);
+      await productAPI.vote(productId, type);
       fetchDashboardData(); // Refresh data
-    } catch (error) {
-      console.error('Error voting:', error);
+      toast.success('Vote recorded!');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error voting');
+    }
+  };
+
+  const handleContactFarmer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+
+    try {
+      await productAPI.contactFarmer(selectedProduct._id, contactMessage);
+      toast.success('Contact request sent!');
+      setShowContactModal(false);
+      setContactMessage({
+        message: '',
+        buyerPhone: '',
+        buyerEmail: ''
+      });
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error sending contact request');
     }
   };
 
@@ -117,6 +218,15 @@ const Dashboard: React.FC = () => {
       case 'premium': return 'text-green-600 bg-green-50';
       case 'standard': return 'text-blue-600 bg-blue-50';
       case 'low': return 'text-orange-600 bg-orange-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return 'text-green-600 bg-green-50';
+      case 'pending': return 'text-yellow-600 bg-yellow-50';
+      case 'rejected': return 'text-red-600 bg-red-50';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
@@ -144,6 +254,12 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const canVote = (product: Product) => {
+    return product.status === 'pending' && 
+           (user?.role === 'farmer' || user?.role === 'admin') && 
+           product.farmer._id !== user?.id;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -164,10 +280,10 @@ const Dashboard: React.FC = () => {
         className="bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl p-8 text-white"
       >
         <h1 className="text-3xl font-bold mb-2">
-          Welcome, {user?.name}! 👋
+          Welcome back, {user?.name}! 👋
         </h1>
         <p className="text-green-100 mb-4">
-          Here's an overview of the latest market prices in your region ({user?.region})
+          Here's an overview of the latest market activity in your region ({user?.region})
         </p>
         <div className="flex items-center space-x-6 text-sm">
           <div className="flex items-center space-x-2">
@@ -221,53 +337,356 @@ const Dashboard: React.FC = () => {
           </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Average Price</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.averagePrice} FCFA</p>
-            </div>
-            <div className="bg-purple-50 p-3 rounded-lg">
-              <DollarSign className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </motion.div>
+        {user?.role === 'farmer' && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">My Products</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.myProductsCount}</p>
+                </div>
+                <div className="bg-purple-50 p-3 rounded-lg">
+                  <Star className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Price Change</p>
-              <p className={`text-2xl font-bold ${stats.priceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {stats.priceChange >= 0 ? '+' : ''}{stats.priceChange.toFixed(1)}%
-              </p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Pending Contacts</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.pendingContacts}</p>
+                </div>
+                <div className="bg-orange-50 p-3 rounded-lg">
+                  <MessageCircle className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+
+        {user?.role === 'buyer' && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Average Price</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.averagePrice} FCFA</p>
+                </div>
+                <div className="bg-purple-50 p-3 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Price Change</p>
+                  <p className={`text-2xl font-bold ${stats.priceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {stats.priceChange >= 0 ? '+' : ''}{stats.priceChange.toFixed(1)}%
+                  </p>
+                </div>
+                <div className={`${stats.priceChange >= 0 ? 'bg-green-50' : 'bg-red-50'} p-3 rounded-lg`}>
+                  {stats.priceChange >= 0 ? (
+                    <TrendingUp className="h-6 w-6 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-6 w-6 text-red-600" />
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+
+        {user?.role === 'admin' && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Average Price</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.averagePrice} FCFA</p>
+                </div>
+                <div className="bg-purple-50 p-3 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Price Change</p>
+                  <p className={`text-2xl font-bold ${stats.priceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {stats.priceChange >= 0 ? '+' : ''}{stats.priceChange.toFixed(1)}%
+                  </p>
+                </div>
+                <div className={`${stats.priceChange >= 0 ? 'bg-green-50' : 'bg-red-50'} p-3 rounded-lg`}>
+                  {stats.priceChange >= 0 ? (
+                    <TrendingUp className="h-6 w-6 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-6 w-6 text-red-600" />
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </div>
+
+      {/* Role-specific sections */}
+      {user?.role === 'farmer' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* My Products */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100"
+          >
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">My Products</h2>
+                <Link
+                  to="/products"
+                  className="text-green-600 hover:text-green-700 text-sm font-medium"
+                >
+                  View All →
+                </Link>
+              </div>
             </div>
-            <div className={`${stats.priceChange >= 0 ? 'bg-green-50' : 'bg-red-50'} p-3 rounded-lg`}>
-              {stats.priceChange >= 0 ? (
-                <TrendingUp className="h-6 w-6 text-green-600" />
+
+            <div className="p-6">
+              {myProducts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-4">No products yet</p>
+                  <Link
+                    to="/products"
+                    className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add Product</span>
+                  </Link>
+                </div>
               ) : (
-                <TrendingDown className="h-6 w-6 text-red-600" />
+                <div className="space-y-4">
+                  {myProducts.map((product) => (
+                    <div key={product._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{getCategoryIcon(product.category)}</span>
+                        <div>
+                          <h3 className="font-medium text-gray-900">{product.name}</h3>
+                          <div className="flex items-center space-x-2 text-sm">
+                            <span className="text-green-600 font-medium">
+                              {product.price.toLocaleString()} FCFA/{product.unit}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(product.status)}`}>
+                              {product.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {canVote(product) && (
+                          <>
+                            <button
+                              onClick={() => handleVote(product._id, 'upvote')}
+                              className="flex items-center space-x-1 px-2 py-1 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            >
+                              <ThumbsUp className="h-4 w-4" />
+                              <span className="text-xs">{product.votes.upvotes.length}</span>
+                            </button>
+                            <button
+                              onClick={() => handleVote(product._id, 'downvote')}
+                              className="flex items-center space-x-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <ThumbsDown className="h-4 w-4" />
+                              <span className="text-xs">{product.votes.downvotes.length}</span>
+                            </button>
+                          </>
+                        )}
+                        {product.status === 'pending' && !canVote(product) && (
+                          <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1 px-2 py-1 text-green-600 bg-green-50 rounded-lg">
+                              <ThumbsUp className="h-4 w-4" />
+                              <span className="text-xs">{product.votes.upvotes.length}</span>
+                            </div>
+                            <div className="flex items-center space-x-1 px-2 py-1 text-red-600 bg-red-50 rounded-lg">
+                              <ThumbsDown className="h-4 w-4" />
+                              <span className="text-xs">{product.votes.downvotes.length}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
+          </motion.div>
+
+          {/* Contact Requests */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100"
+          >
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">Recent Contact Requests</h2>
+            </div>
+
+            <div className="p-6">
+              {contacts.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No contact requests yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {contacts.map((contact) => (
+                    <div key={contact._id} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-900">{contact.buyer.name}</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          contact.status === 'pending' ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50'
+                        }`}>
+                          {contact.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">
+                        Interested in: <span className="font-medium">{contact.product.name}</span>
+                      </p>
+                      <p className="text-sm text-gray-700 line-clamp-2">{contact.message}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {format(new Date(contact.createdAt), 'PPp', { locale: fr })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Buyer Dashboard - Available Products */}
+      {user?.role === 'buyer' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100"
+        >
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Available Products</h2>
+              <Link
+                to="/products"
+                className="text-green-600 hover:text-green-700 text-sm font-medium"
+              >
+                View All →
+              </Link>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {allProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No products available at the moment</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {allProducts.map((product) => (
+                  <div key={product._id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-2xl">{getCategoryIcon(product.category)}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(product.status)}`}>
+                        {product.status}
+                      </span>
+                    </div>
+                    
+                    <h3 className="font-semibold text-gray-900 mb-2">{product.name}</h3>
+                    
+                    <div className="text-lg font-bold text-green-600 mb-3">
+                      {product.price.toLocaleString()} FCFA/{product.unit}
+                    </div>
+
+                    {/* Farmer Contact Info */}
+                    <div className="bg-white rounded-lg p-3 mb-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <User className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-900">{product.farmer.name}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Phone className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs text-gray-600">{product.contactPhone}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Mail className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs text-gray-600">{product.contactEmail}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs text-gray-600">{product.location.city}, {product.location.region}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setShowContactModal(true);
+                      }}
+                      className="w-full bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors"
+                    >
+                      Contact Farmer
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
-      </div>
+      )}
 
       {/* Cash Crops Market Summary */}
       {Object.keys(marketSummary).length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.7 }}
           className="bg-white rounded-2xl shadow-sm border border-gray-100"
         >
           <div className="p-6 border-b border-gray-100">
@@ -308,7 +727,7 @@ const Dashboard: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
+        transition={{ delay: 0.8 }}
         className="bg-white rounded-2xl shadow-sm border border-gray-100"
       >
         <div className="p-6 border-b border-gray-100">
@@ -329,7 +748,12 @@ const Dashboard: React.FC = () => {
                 <option value="North">North</option>
                 <option value="South">South</option>
               </select>
-              <Filter className="h-5 w-5 text-gray-400" />
+              <Link
+                to="/prices"
+                className="text-green-600 hover:text-green-700 text-sm font-medium"
+              >
+                View All →
+              </Link>
             </div>
           </div>
         </div>
@@ -381,20 +805,14 @@ const Dashboard: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleVote(price._id, 'upvote')}
-                        className="flex items-center space-x-1 px-2 py-1 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                      >
+                      <div className="flex items-center space-x-1 px-2 py-1 text-green-600 bg-green-50 rounded-lg">
                         <ThumbsUp className="h-4 w-4" />
                         <span className="text-xs">{price.votes.upvotes.length}</span>
-                      </button>
-                      <button
-                        onClick={() => handleVote(price._id, 'downvote')}
-                        className="flex items-center space-x-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
+                      </div>
+                      <div className="flex items-center space-x-1 px-2 py-1 text-red-600 bg-red-50 rounded-lg">
                         <ThumbsDown className="h-4 w-4" />
                         <span className="text-xs">{price.votes.downvotes.length}</span>
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -403,6 +821,81 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </motion.div>
+
+      {/* Contact Modal */}
+      {showContactModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl p-6 max-w-md w-full"
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              Contact {selectedProduct.farmer.name}
+            </h2>
+            
+            <form onSubmit={handleContactFarmer} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Phone
+                </label>
+                <input
+                  type="tel"
+                  value={contactMessage.buyerPhone}
+                  onChange={(e) => setContactMessage(prev => ({ ...prev, buyerPhone: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="6XXXXXXXX"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Email
+                </label>
+                <input
+                  type="email"
+                  value={contactMessage.buyerEmail}
+                  onChange={(e) => setContactMessage(prev => ({ ...prev, buyerEmail: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="your@email.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message
+                </label>
+                <textarea
+                  value={contactMessage.message}
+                  onChange={(e) => setContactMessage(prev => ({ ...prev, message: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  rows={4}
+                  placeholder="I'm interested in your product..."
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowContactModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Send Message
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

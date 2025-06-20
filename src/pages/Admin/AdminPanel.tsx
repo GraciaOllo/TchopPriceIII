@@ -5,9 +5,12 @@ import {
   Search, Filter, MoreVertical, Eye,
   UserCheck, UserX, Edit, Trash2, Plus,
   CheckCircle, XCircle, AlertTriangle,
-  BarChart3, DollarSign, Activity
+  BarChart3, DollarSign, Activity,
+  ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown,
+  MessageCircle, Phone, Mail, MapPin, User
 } from 'lucide-react';
 import { userAPI, priceAPI, productAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import toast from 'react-hot-toast';
@@ -16,7 +19,7 @@ interface User {
   _id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'admin' | 'farmer' | 'buyer';
   region: string;
   location: string;
   isVerified: boolean;
@@ -47,11 +50,30 @@ interface Product {
   _id: string;
   name: string;
   category: string;
+  description: string;
+  price: number;
   unit: string;
+  quantity: number;
+  quality: string;
+  status: string;
   isActive: boolean;
-  createdBy: {
+  farmer: {
+    _id: string;
     name: string;
     role: string;
+    email: string;
+    region: string;
+  };
+  contactPhone: string;
+  contactEmail: string;
+  location: {
+    region: string;
+    city: string;
+    address: string;
+  };
+  votes: {
+    upvotes: any[];
+    downvotes: any[];
   };
   createdAt: string;
 }
@@ -63,9 +85,13 @@ interface AdminStats {
   verifiedUsers: number;
   verifiedPrices: number;
   todayPrices: number;
+  approvedProducts: number;
+  pendingProducts: number;
+  rejectedProducts: number;
 }
 
 const AdminPanel: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'prices' | 'products'>('overview');
   const [users, setUsers] = useState<User[]>([]);
   const [prices, setPrices] = useState<Price[]>([]);
@@ -76,12 +102,32 @@ const AdminPanel: React.FC = () => {
     totalProducts: 0,
     verifiedUsers: 0,
     verifiedPrices: 0,
-    todayPrices: 0
+    todayPrices: 0,
+    approvedProducts: 0,
+    pendingProducts: 0,
+    rejectedProducts: 0
   });
   const [loading, setLoading] = useState(true);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [statusUpdate, setStatusUpdate] = useState({
+    status: '',
+    reason: ''
+  });
+  const [contactMessage, setContactMessage] = useState({
+    message: '',
+    buyerPhone: '',
+    buyerEmail: ''
+  });
+  const [pagination, setPagination] = useState({
+    users: { current: 1, pages: 1, total: 0 },
+    prices: { current: 1, pages: 1, total: 0 },
+    products: { current: 1, pages: 1, total: 0 }
+  });
   const [filters, setFilters] = useState({
     search: '',
     role: '',
@@ -102,9 +148,29 @@ const AdminPanel: React.FC = () => {
   const [newProduct, setNewProduct] = useState({
     name: '',
     category: '',
+    description: '',
+    price: '',
     unit: '',
-    description: ''
+    quantity: '',
+    quality: 'standard',
+    contactPhone: '',
+    contactEmail: '',
+    region: '',
+    city: '',
+    address: ''
   });
+
+  const categories = [
+    { value: 'cereals', label: 'Cereals', icon: '🌾' },
+    { value: 'legumes', label: 'Legumes', icon: '🫘' },
+    { value: 'tubers', label: 'Tubers', icon: '🥔' },
+    { value: 'fruits', label: 'Fruits', icon: '🍎' },
+    { value: 'vegetables', label: 'Vegetables', icon: '🥬' },
+    { value: 'spices', label: 'Spices', icon: '🌶️' },
+    { value: 'cash_crops', label: 'Cash Crops', icon: '☕' }
+  ];
+
+  const units = ['kg', 'ton', 'bag', 'bunch', 'piece', 'liter'];
 
   useEffect(() => {
     fetchAdminData();
@@ -118,21 +184,21 @@ const AdminPanel: React.FC = () => {
     } else if (activeTab === 'products') {
       fetchProducts();
     }
-  }, [activeTab, filters]);
+  }, [activeTab, filters, pagination.users.current, pagination.prices.current, pagination.products.current]);
 
   const fetchAdminData = async () => {
     try {
       setLoading(true);
-      const [userStatsRes, priceStatsRes, productsRes] = await Promise.all([
+      const [userStatsRes, priceStatsRes, productStatsRes] = await Promise.all([
         userAPI.getStats(),
         priceAPI.getStats(),
-        productAPI.getAll()
+        productAPI.getStats()
       ]);
 
       setStats({
         ...userStatsRes.data,
         ...priceStatsRes.data,
-        totalProducts: productsRes.data.products.length
+        ...productStatsRes.data
       });
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -149,9 +215,14 @@ const AdminPanel: React.FC = () => {
         region: filters.region,
         search: filters.search,
         status: filters.status,
-        limit: 50
+        page: pagination.users.current,
+        limit: 10
       });
       setUsers(response.data.users);
+      setPagination(prev => ({
+        ...prev,
+        users: response.data.pagination
+      }));
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Error loading users');
@@ -161,11 +232,16 @@ const AdminPanel: React.FC = () => {
   const fetchPrices = async () => {
     try {
       const response = await priceAPI.getAll({
-        limit: 50,
+        page: pagination.prices.current,
+        limit: 10,
         sortBy: 'createdAt',
         order: 'desc'
       });
       setPrices(response.data.prices);
+      setPagination(prev => ({
+        ...prev,
+        prices: response.data.pagination
+      }));
     } catch (error) {
       console.error('Error fetching prices:', error);
       toast.error('Error loading prices');
@@ -174,11 +250,21 @@ const AdminPanel: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await productAPI.getAll();
-      setProducts(response.data.products);
+      const response = await productAPI.getAll({
+        page: pagination.products.current,
+        limit: 10,
+        status: '' // Get all products regardless of status for admin
+      });
+      console.log('Products response:', response.data);
+      setProducts(response.data.products || []);
+      setPagination(prev => ({
+        ...prev,
+        products: response.data.pagination
+      }));
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Error loading products');
+      setProducts([]);
     }
   };
 
@@ -228,6 +314,63 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleProductStatusUpdate = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      await productAPI.updateStatus(selectedProduct._id, statusUpdate);
+      toast.success(`Product ${statusUpdate.status} successfully`);
+      setShowStatusModal(false);
+      setStatusUpdate({ status: '', reason: '' });
+      setSelectedProduct(null);
+      fetchProducts();
+      fetchAdminData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error updating product status');
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        await productAPI.delete(productId);
+        toast.success('Product deleted successfully');
+        fetchProducts();
+        fetchAdminData();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Error deleting product');
+      }
+    }
+  };
+
+  const handleVote = async (productId: string, type: 'upvote' | 'downvote') => {
+    try {
+      await productAPI.vote(productId, type);
+      fetchProducts();
+      toast.success('Vote recorded!');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error voting');
+    }
+  };
+
+  const handleContactFarmer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+
+    try {
+      await productAPI.contactFarmer(selectedProduct._id, contactMessage);
+      toast.success('Contact request sent!');
+      setShowContactModal(false);
+      setContactMessage({
+        message: '',
+        buyerPhone: '',
+        buyerEmail: ''
+      });
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error sending contact request');
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -253,14 +396,26 @@ const AdminPanel: React.FC = () => {
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await productAPI.create(newProduct);
+      await productAPI.create({
+        ...newProduct,
+        price: parseFloat(newProduct.price),
+        quantity: parseFloat(newProduct.quantity)
+      });
       toast.success('Product created successfully');
       setShowProductModal(false);
       setNewProduct({
         name: '',
         category: '',
+        description: '',
+        price: '',
         unit: '',
-        description: ''
+        quantity: '',
+        quality: 'standard',
+        contactPhone: '',
+        contactEmail: '',
+        region: '',
+        city: '',
+        address: ''
       });
       fetchProducts();
       fetchAdminData();
@@ -269,10 +424,17 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handlePageChange = (tab: string, page: number) => {
+    setPagination(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab as keyof typeof prev], current: page }
+    }));
+  };
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin': return 'text-red-600 bg-red-50 border-red-200';
-      case 'agent': return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'buyer': return 'text-blue-600 bg-blue-50 border-blue-200';
       case 'farmer': return 'text-green-600 bg-green-50 border-green-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -290,6 +452,27 @@ const AdminPanel: React.FC = () => {
     return 'Pending';
   };
 
+  const getProductStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return 'text-green-600 bg-green-50';
+      case 'pending': return 'text-yellow-600 bg-yellow-50';
+      case 'rejected': return 'text-red-600 bg-red-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'cereals': return '🌾';
+      case 'fruits': return '🍎';
+      case 'vegetables': return '🥬';
+      case 'tubers': return '🥔';
+      case 'legumes': return '🫘';
+      case 'cash_crops': return '☕';
+      default: return '🌱';
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: Users },
@@ -297,17 +480,67 @@ const AdminPanel: React.FC = () => {
     { id: 'products', label: 'Products', icon: Package }
   ];
 
-  const categories = [
-    { value: 'cereals', label: 'Cereals' },
-    { value: 'legumes', label: 'Legumes' },
-    { value: 'tubers', label: 'Tubers' },
-    { value: 'fruits', label: 'Fruits' },
-    { value: 'vegetables', label: 'Vegetables' },
-    { value: 'spices', label: 'Spices' },
-    { value: 'cash_crops', label: 'Cash Crops' }
-  ];
+  const PaginationComponent = ({ 
+    pagination: pag, 
+    onPageChange, 
+    tab 
+  }: { 
+    pagination: any, 
+    onPageChange: (tab: string, page: number) => void, 
+    tab: string 
+  }) => (
+    <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
+      <div className="flex items-center text-sm text-gray-700">
+        <span>
+          Showing {((pag.current - 1) * 10) + 1} to {Math.min(pag.current * 10, pag.total)} of {pag.total} results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => onPageChange(tab, pag.current - 1)}
+          disabled={pag.current === 1}
+          className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        
+        {Array.from({ length: Math.min(5, pag.pages) }, (_, i) => {
+          const page = i + 1;
+          return (
+            <button
+              key={page}
+              onClick={() => onPageChange(tab, page)}
+              className={`px-3 py-1 text-sm rounded-md ${
+                page === pag.current
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {page}
+            </button>
+          );
+        })}
+        
+        <button
+          onClick={() => onPageChange(tab, pag.current + 1)}
+          disabled={pag.current === pag.pages}
+          className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
 
-  const units = ['kg', 'ton', 'bag', 'bunch', 'piece', 'liter'];
+  if (user?.role !== 'admin') {
+    return (
+      <div className="text-center py-12">
+        <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+        <p className="text-gray-600">You don't have permission to access this page.</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -395,7 +628,7 @@ const AdminPanel: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium text-purple-600">Products</p>
                       <p className="text-2xl font-bold text-purple-900">{stats.totalProducts}</p>
-                      <p className="text-xs text-purple-600">Active products</p>
+                      <p className="text-xs text-purple-600">{stats.approvedProducts} approved</p>
                     </div>
                     <Package className="h-8 w-8 text-purple-600" />
                   </div>
@@ -421,9 +654,9 @@ const AdminPanel: React.FC = () => {
                 </button>
 
                 <div className="p-6 bg-white border border-gray-200 rounded-xl">
-                  <Activity className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-                  <p className="font-medium text-gray-700 text-center">System Health</p>
-                  <p className="text-sm text-green-600 text-center mt-1">All systems operational</p>
+                  <Shield className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                  <p className="font-medium text-gray-700 text-center">Security Status</p>
+                  <p className="text-sm text-green-600 text-center mt-1">No threats detected</p>
                 </div>
               </div>
             </motion.div>
@@ -457,7 +690,7 @@ const AdminPanel: React.FC = () => {
                   >
                     <option value="">All Roles</option>
                     <option value="farmer">Farmers</option>
-                    <option value="agent">Agents</option>
+                    <option value="buyer">Buyers</option>
                     <option value="admin">Admins</option>
                   </select>
 
@@ -474,7 +707,7 @@ const AdminPanel: React.FC = () => {
 
                   <div className="flex items-center text-sm text-gray-600">
                     <Users className="h-4 w-4 mr-2" />
-                    <span>{users.length} users</span>
+                    <span>{pagination.users.total} users</span>
                   </div>
                 </div>
 
@@ -587,7 +820,168 @@ const AdminPanel: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+                <PaginationComponent 
+                  pagination={pagination.users} 
+                  onPageChange={handlePageChange} 
+                  tab="users" 
+                />
               </div>
+            </motion.div>
+          )}
+
+          {/* Products Tab */}
+          {activeTab === 'products' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Product Management</h3>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Package className="h-4 w-4 mr-2" />
+                    <span>{pagination.products.total} products</span>
+                  </div>
+                  <button
+                    onClick={() => setShowProductModal(true)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span>Add Product</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Product Cards */}
+              {products.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No products found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {products.map((product, index) => (
+                    <motion.div
+                      key={product._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+                    >
+                      <div className="p-6">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="text-3xl">{getCategoryIcon(product.category)}</div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${getProductStatusColor(product.status)}`}>
+                              {product.status}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Product Info */}
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {product.name}
+                        </h3>
+                        
+                        <div className="text-xl font-bold text-green-600 mb-2">
+                          {typeof product.price === 'number' ? product.price.toLocaleString() : 'N/A'} FCFA
+                          <span className="text-sm text-gray-500 font-normal">/{product.unit}</span>
+                        </div>
+
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                          {product.description}
+                        </p>
+
+                        {/* Farmer Info */}
+                        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <User className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-900">{product.farmer && product.farmer.name ? product.farmer.name : 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Phone className="h-3 w-3 text-gray-400" />
+                            <span className="text-xs text-gray-600">{product.contactPhone}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Mail className="h-3 w-3 text-gray-400" />
+                            <span className="text-xs text-gray-600">{product.contactEmail}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <MapPin className="h-3 w-3 text-gray-400" />
+                            <span className="text-xs text-gray-600">{product.location?.city || 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        {/* Voting and Actions */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleVote(product._id, 'upvote')}
+                              className="flex items-center space-x-1 px-2 py-1 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            >
+                              <ThumbsUp className="h-4 w-4" />
+                              <span className="text-xs">{product.votes.upvotes.length}</span>
+                            </button>
+                            <button
+                              onClick={() => handleVote(product._id, 'downvote')}
+                              className="flex items-center space-x-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <ThumbsDown className="h-4 w-4" />
+                              <span className="text-xs">{product.votes.downvotes.length}</span>
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setShowContactModal(true);
+                            }}
+                            className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                          >
+                            Contact
+                          </button>
+                        </div>
+
+                        {/* Admin Actions */}
+                        <div className="flex space-x-2 mb-3">
+                          <button
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setStatusUpdate({ status: product.status, reason: '' });
+                              setShowStatusModal(true);
+                            }}
+                            className="flex-1 bg-gray-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                          >
+                            Update Status
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(product._id)}
+                            className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        {/* Metadata */}
+                        <div className="pt-3 border-t border-gray-100 text-xs text-gray-500">
+                          <div className="flex items-center justify-between">
+                            <span>Qty: {product.quantity} {product.unit}</span>
+                            <span>{format(new Date(product.createdAt), 'PP', { locale: fr })}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
+              <PaginationComponent 
+                pagination={pagination.products} 
+                onPageChange={handlePageChange} 
+                tab="products" 
+              />
             </motion.div>
           )}
 
@@ -602,7 +996,7 @@ const AdminPanel: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Price Management</h3>
                 <div className="flex items-center text-sm text-gray-600">
                   <TrendingUp className="h-4 w-4 mr-2" />
-                  <span>{prices.length} price reports</span>
+                  <span>{pagination.prices.total} price reports</span>
                 </div>
               </div>
 
@@ -680,46 +1074,11 @@ const AdminPanel: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Products Tab */}
-          {activeTab === 'products' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Product Management</h3>
-                <button
-                  onClick={() => setShowProductModal(true)}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span>Add Product</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products.map((product) => (
-                  <div key={product._id} className="bg-white border border-gray-200 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-semibold text-gray-900">{product.name}</h4>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        product.isActive ? 'text-green-800 bg-green-100' : 'text-red-800 bg-red-100'
-                      }`}>
-                        {product.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <p><span className="font-medium">Category:</span> {product.category}</p>
-                      <p><span className="font-medium">Unit:</span> {product.unit}</p>
-                      <p><span className="font-medium">Created by:</span> {product.createdBy.name}</p>
-                    </div>
-                  </div>
-                ))}
+                <PaginationComponent 
+                  pagination={pagination.prices} 
+                  onPageChange={handlePageChange} 
+                  tab="prices" 
+                />
               </div>
             </motion.div>
           )}
@@ -813,7 +1172,7 @@ const AdminPanel: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
                   <option value="farmer">Farmer</option>
-                  <option value="agent">Agent</option>
+                  <option value="buyer">Buyer</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -844,54 +1203,146 @@ const AdminPanel: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
           >
             <h2 className="text-xl font-bold text-gray-900 mb-6">Add New Product</h2>
             
             <form onSubmit={handleCreateProduct} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
+                  <input
+                    type="text"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <select
+                    value={newProduct.category}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(category => (
+                      <option key={category.value} value={category.value}>
+                        {category.icon} {category.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Price (FCFA)</label>
+                  <input
+                    type="number"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, price: e.target.value }))}
+                    required
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
+                  <select
+                    value={newProduct.unit}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, unit: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select Unit</option>
+                    {units.map(unit => (
+                      <option key={unit} value={unit}>{unit}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                  <input
+                    type="number"
+                    value={newProduct.quantity}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, quantity: e.target.value }))}
+                    required
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quality</label>
+                  <select
+                    value={newProduct.quality}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, quality: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="premium">Premium</option>
+                    <option value="standard">Standard</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
+                  <input
+                    type="tel"
+                    value={newProduct.contactPhone}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, contactPhone: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                  <input
+                    type="email"
+                    value={newProduct.contactEmail}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, contactEmail: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                  <input
+                    type="text"
+                    value={newProduct.region}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, region: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                  <input
+                    type="text"
+                    value={newProduct.city}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, city: e.target.value }))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
                 <input
                   type="text"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
+                  value={newProduct.address}
+                  onChange={(e) => setNewProduct(prev => ({ ...prev, address: e.target.value }))}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                <select
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(category => (
-                    <option key={category.value} value={category.value}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
-                <select
-                  value={newProduct.unit}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, unit: e.target.value }))}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="">Select Unit</option>
-                  {units.map(unit => (
-                    <option key={unit} value={unit}>
-                      {unit}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div>
@@ -899,7 +1350,8 @@ const AdminPanel: React.FC = () => {
                 <textarea
                   value={newProduct.description}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   rows={3}
                 />
               </div>
@@ -914,9 +1366,156 @@ const AdminPanel: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   Create Product
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Product Status Update Modal */}
+      {showStatusModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl p-6 max-w-md w-full"
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              Update Product Status
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Product: {selectedProduct.name}
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={statusUpdate.status}
+                  onChange={(e) => setStatusUpdate(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              {statusUpdate.status === 'rejected' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rejection Reason
+                  </label>
+                  <textarea
+                    value={statusUpdate.reason}
+                    onChange={(e) => setStatusUpdate(prev => ({ ...prev, reason: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    rows={3}
+                    placeholder="Please provide a reason for rejection..."
+                  />
+                </div>
+              )}
+
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Note:</strong> When a product is approved, its price will automatically be added to the market prices.
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleProductStatusUpdate}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Update Status
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Contact Modal */}
+      {showContactModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl p-6 max-w-md w-full"
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              Contact {selectedProduct.farmer.name}
+            </h2>
+            
+            <form onSubmit={handleContactFarmer} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Phone
+                </label>
+                <input
+                  type="tel"
+                  value={contactMessage.buyerPhone}
+                  onChange={(e) => setContactMessage(prev => ({ ...prev, buyerPhone: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="6XXXXXXXX"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Email
+                </label>
+                <input
+                  type="email"
+                  value={contactMessage.buyerEmail}
+                  onChange={(e) => setContactMessage(prev => ({ ...prev, buyerEmail: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="your@email.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message
+                </label>
+                <textarea
+                  value={contactMessage.message}
+                  onChange={(e) => setContactMessage(prev => ({ ...prev, message: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  rows={4}
+                  placeholder="I'm interested in your product..."
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowContactModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Send Message
                 </button>
               </div>
             </form>

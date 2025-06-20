@@ -36,6 +36,40 @@ router.patch('/:userId/unblock', authenticateToken, authorizeRoles('admin'), unb
 router.get('/stats', authenticateToken, authorizeRoles('admin'), getUserStats);
 
 // User profile routes
-router.put('/profile', authenticateToken, updateProfile);
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, phone, region, location, crops } = req.body;
+    
+    const user = await user.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (region) user.region = region;
+    if (location) user.location = location;
+    if (crops) user.crops = crops;
+
+    await user.save();
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        region: user.region,
+        location: user.location,
+        crops: user.crops
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Server error while updating profile' });
+  }
+});
 
 export default router;
