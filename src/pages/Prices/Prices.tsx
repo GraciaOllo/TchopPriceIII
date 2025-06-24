@@ -175,6 +175,7 @@ const Prices: React.FC = () => {
       case 'tubers': return '🥔';
       case 'legumes': return '🫘';
       case 'cash_crops': return '☕';
+      case 'fertilizers': return '🛡️';
       default: return '🌱';
     }
   };

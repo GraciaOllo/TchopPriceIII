@@ -9,7 +9,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['cereals', 'legumes', 'tubers', 'fruits', 'vegetables', 'spices', 'cash_crops']
+    enum: ['cereals', 'legumes', 'tubers', 'fruits', 'vegetables', 'spices', 'cash_crops','fertilizer']
   },
   description: {
     type: String,

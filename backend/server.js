@@ -12,6 +12,7 @@ import voteRoutes from './routes/votes.js';
 import regionRoutes from './routes/regions.js';
 import notificationRoutes from './routes/notifications.js';
 import marketDataRoutes from './routes/marketData.js';
+import paymentRoutes from './routes/payments.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/votes', voteRoutes);
 app.use('/api/regions', regionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/market-data', marketDataRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -65,5 +67,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 TchopPrice III server running on port ${PORT}`);
+  console.log(` TchopPrice III server running on port ${PORT}`);
 });

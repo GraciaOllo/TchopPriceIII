@@ -393,14 +393,14 @@ export const updateProductStatus = async (req, res) => {
     // Notify farmer
     try {
       const notificationType = status === 'approved' ? 'product_approved' : 
-                              status === 'rejected' ? 'product_rejected' : 'product_pending';
+        status === 'rejected' ? 'product_rejected' : 'product_pending';
       const title = status === 'approved' ? 'Product Approved' : 
-                   status === 'rejected' ? 'Product Rejected' : 'Product Under Review';
+                  status === 'rejected' ? 'Product Rejected' : 'Product Under Review';
       const message = status === 'approved' ? 
-                     `Your product "${product.name}" has been approved and is now visible to buyers. A market price has been automatically created.` :
-                     status === 'rejected' ? 
-                     `Your product "${product.name}" has been rejected. Reason: ${reason}` :
-                     `Your product "${product.name}" is under review.`;
+        `Your product "${product.name}" has been approved and is now visible to buyers. A market price has been automatically created.` :
+          status === 'rejected' ? 
+        `Your product "${product.name}" has been rejected. Reason: ${reason}` :
+        `Your product "${product.name}" is under review.`;
 
       await createNotification(
         product.farmer,
@@ -431,9 +431,9 @@ export const voteProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Check if product is pending (only pending products can be voted on)
-    if (product.status !== 'pending') {
-      return res.status(400).json({ message: 'Can only vote on pending products' });
+    // Check if product is approved (pending products can not be voted on)
+    if (product.status !== 'approved') {
+      return res.status(400).json({ message: 'Can only vote on approved products' });
     }
 
     // Only farmers and admins can vote, and not on their own products

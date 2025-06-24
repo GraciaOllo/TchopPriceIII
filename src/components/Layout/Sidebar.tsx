@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Home, TrendingUp, Package, User, 
-  Shield, Settings, HelpCircle 
+  Shield, Settings, HelpCircle, MessageCircle, CreditCard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { clsx } from 'clsx';
@@ -14,9 +14,14 @@ const Sidebar: React.FC = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Market trends', href: '/prices', icon: TrendingUp },
+    { name: 'Market Prices', href: '/prices', icon: TrendingUp },
     { name: 'Products', href: '/products', icon: Package },
-    { name: 'My profile', href: '/profile', icon: User },
+    { name: 'My Profile', href: '/profile', icon: User },
+  ];
+
+  const farmerNavigation = [
+    { name: 'Messages', href: '/messages', icon: MessageCircle },
+    { name: 'Payments', href: '/payments', icon: CreditCard },
   ];
 
   const adminNavigation = [
@@ -64,6 +69,42 @@ const Sidebar: React.FC = () => {
                 );
               })}
             </div>
+
+            {/* Farmer Navigation */}
+            {user?.role === 'farmer' && (
+              <div className="pt-6">
+                <div className="px-3 py-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Farmer Tools
+                  </h3>
+                </div>
+                <div className="space-y-1">
+                  {farmerNavigation.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={clsx(
+                          'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                          isActive(item.href)
+                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        )}
+                      >
+                        <Icon 
+                          className={clsx(
+                            'mr-3 h-5 w-5 transition-colors',
+                            isActive(item.href) ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
+                          )} 
+                        />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Admin Navigation */}
             {user?.role === 'admin' && (

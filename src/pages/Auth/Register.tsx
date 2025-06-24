@@ -5,7 +5,7 @@ import { Eye, EyeOff, Sprout, User, Mail, Lock, Phone, MapPin, Briefcase } from 
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { regionAPI } from '../../services/api';
-
+import TchopPrice from '../../public/images/TchopPrice icon.png';
 interface RegisterForm {
   name: string;
   email: string;
@@ -68,7 +68,7 @@ const Register: React.FC = () => {
 
   const commonCrops = [
     'Maïze', 'Rice', 'Cassava', 'Plantain', 'Banana', 'Coacoa', 'Coffee',
-    'Groundnuts', 'Beans', 'Tomato', 'Onions', 'Pepper', 'Okro'
+    'Groundnuts', 'Beans', 'Tomato', 'Onions', 'Pepper', 'Okro','fertilizer'
   ];
 
   return (
@@ -85,8 +85,16 @@ const Register: React.FC = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="mx-auto w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center shadow-lg"
+            // className="mx-auto w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center shadow-lg"
+            
           >
+          <div >
+            <img 
+              src={TchopPrice} 
+              alt="TchopPrice" 
+              className="mx-auto w-16 h-16 bg-green-800 rounded-2xl flex items-center justify-center shadow-lg"
+            />
+          </div>
             <Sprout className="h-8 w-8 text-white" />
           </motion.div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">

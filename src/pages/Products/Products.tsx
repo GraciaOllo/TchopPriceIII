@@ -102,7 +102,8 @@ const Products: React.FC = () => {
     { value: 'fruits', label: 'Fruits', icon: '🍎' },
     { value: 'vegetables', label: 'Vegetables', icon: '🥬' },
     { value: 'spices', label: 'Spices', icon: '🌶️' },
-    { value: 'cash_crops', label: 'Cash Crops', icon: '☕' }
+    { value: 'cash_crops', label: 'Cash Crops', icon: '☕' },
+    { value: 'fertilizer', label: 'Fertilizer', icon: '🛡️' }
   ];
 
   const units = ['kg', 'ton', 'bag', 'bunch', 'piece', 'liter'];
@@ -238,8 +239,8 @@ const Products: React.FC = () => {
 
   const canVote = (product: Product) => {
     return product.status === 'pending' && 
-           (user?.role === 'farmer' || user?.role === 'admin') && 
-           product.farmer._id !== user?.id;
+      (user?.role === 'farmer' || user?.role === 'admin') && 
+      product.farmer._id !== user?.id;
   };
 
   const canAddProduct = user?.role === 'farmer';

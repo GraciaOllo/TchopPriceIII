@@ -11,6 +11,8 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import Prices from './pages/Prices/Prices';
 import Products from './pages/Products/Products';
 import Profile from './pages/Profile/Profile';
+import Messages from './pages/Messages/Messages';
+import Payments from './pages/Payments/Payments';
 import AdminPanel from './pages/Admin/AdminPanel';
 
 function App() {
@@ -64,6 +66,22 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Profile />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/messages" element={
+              <ProtectedRoute allowedRoles={['farmer']}>
+                <Layout>
+                  <Messages />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/payments" element={
+              <ProtectedRoute allowedRoles={['farmer']}>
+                <Layout>
+                  <Payments />
                 </Layout>
               </ProtectedRoute>
             } />

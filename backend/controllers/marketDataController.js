@@ -25,7 +25,7 @@ export const getCashCropPrices = async (req, res) => {
         for (const crop of requestedCrops) {
             if (CASH_CROP_SYMBOLS[crop]) {
                 try {
-                    // For demo purposes, we'll use mock data since Nasdaq API requires subscription
+                    // i did not have money for subscribing to Nasdaq so I'll just mock results
                     // In production, replace with actual API call
                     const mockData = generateMockPriceData(crop, days);
                     priceData[crop] = mockData;

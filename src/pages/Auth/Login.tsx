@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff, Sprout, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
+import TchopPrice from '../../public/images/TchopPrice icon.png';
 
 interface LoginForm {
   email: string;
@@ -49,8 +50,14 @@ const Login: React.FC = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="mx-auto w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center shadow-lg"
           >
+            <div >
+            <img 
+              src={TchopPrice} 
+              alt="TchopPrice" 
+              className="mx-auto w-16 h-16 bg-green-800 rounded-2xl flex items-center justify-center shadow-lg"
+            />
+          </div>
             <Sprout className="h-8 w-8 text-white" />
           </motion.div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
@@ -89,7 +96,7 @@ const Login: React.FC = () => {
                   })}
                   type="email"
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  placeholder="votre@email.com"
+                  placeholder="your@email.com"
                 />
               </div>
               {errors.email && (
